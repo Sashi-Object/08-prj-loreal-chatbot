@@ -13,6 +13,7 @@ let messages = [
   },
 ];
 
+// The worker URL
 const workerURL = "https://chatbo-worker.nataliebonilla2.workers.dev/";
 
 // Helper method to add messages to the chat window. Show previous messages to build up history and context for user 
@@ -37,6 +38,7 @@ addMessage(
 chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
+  // Ensures message is ligible before sending. 
   const message = userInput.value.trim();
   if (!message) {
     return;
@@ -49,6 +51,7 @@ chatForm.addEventListener("submit", async (e) => {
   sendBtn.disabled = true;
   const loadingMessage = addMessage("ai", "Thinking...");
 
+  // Add the new user message to the messages array to maintain conversation history and context for the assistant.
   messages.push({
     role: "user",
     content: message,
@@ -73,7 +76,7 @@ chatForm.addEventListener("submit", async (e) => {
       throw new Error(errorMessage);
     }
 
-    const aiReply = data?.choices?.[0]?.message?.content || data?.reply || "";
+    const aiReply = data.choices?.[0]?.message?.content || data?.reply || "";
 
     if (!aiReply) {
       throw new Error("No assistant response was returned by your Worker.");
@@ -84,10 +87,14 @@ chatForm.addEventListener("submit", async (e) => {
       content: aiReply,
     });
 
+    // Set the loading message to the assistant's reply. This way we keep the "Thinking..." message in place until we have a response, then we update it instead of adding a new message, which keeps the chat cleaner and more cohesive.
     loadingMessage.textContent = aiReply;
+
+    // If any errors come up when reading from the AI or response then, we express them in here.
   } catch (error) {
     loadingMessage.textContent = `Error: ${error.message || "Request failed."}`;
     console.error("Chat request error:", error);
+
   } finally {
     sendBtn.disabled = false;
     userInput.focus();
