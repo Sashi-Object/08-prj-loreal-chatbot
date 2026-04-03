@@ -4,48 +4,33 @@ const userInput = document.getElementById("userInput");
 const chatWindow = document.getElementById("chatWindow");
 const sendBtn = document.getElementById("sendBtn");
 
-const workerURL = "https://chatbo-worker.nataliebonilla2.workers.dev/";
-
-// This system prompt keeps the assistant focused on L'Oreal beauty topics.
-const SYSTEM_PROMPT =
-  "You are a helpful L'Oreal beauty advisor. Only answer questions related to L'Oreal products, skincare, makeup, haircare, fragrance, ingredients, routines, and beauty recommendations. If a question is unrelated, politely refuse and redirect the user to ask about L'Oreal beauty topics.";
-
-const conversation = [
+// Keep one simple message history array.
+let messages = [
   {
     role: "system",
-    content: SYSTEM_PROMPT,
+    content:
+      "You are a helpful L'Oreal beauty advisor. Only answer questions related to L'Oreal products, skincare, makeup, haircare, fragrance, ingredients, routines, and beauty recommendations. If a question is unrelated, politely refuse and redirect the user to ask about L'Oreal beauty topics.",
   },
 ];
 
+const workerURL = "https://chatbo-worker.nataliebonilla2.workers.dev/";
+
+// Helper method to add messages to the chat window. Show previous messages to build up history and context for user 
+// and the assistant.
 function addMessage(role, text) {
-  const msg = document.createElement("p");
-  msg.classList.add("msg", role);
-  msg.textContent = text;
-  chatWindow.appendChild(msg);
+  const message = document.createElement("p");
+  message.classList.add("msg", role);
+  message.textContent = text;
+  chatWindow.appendChild(message);
   chatWindow.scrollTop = chatWindow.scrollHeight;
-  return msg;
-}
-
-function setLoadingState(isLoading) {
-  sendBtn.disabled = isLoading;
-  userInput.disabled = isLoading;
-}
-
-function getAssistantText(data) {
-  return (
-    data?.choices?.[0]?.message?.content ||
-    data?.result?.response ||
-    data?.response ||
-    data?.message ||
-    ""
-  );
+  return message;
 }
 
 // Set initial assistant message in the chat window.
 chatWindow.textContent = "";
 addMessage(
   "ai",
-  "Hello. I can help with L'Oreal products and beauty routines.",
+  "Hello! I'm your L'Oreal beauty advisor. Ask me about products, routines, or recommendations.",
 );
 
 /* Handle form submit */
@@ -57,34 +42,28 @@ chatForm.addEventListener("submit", async (e) => {
     return;
   }
 
+  // Add user message to chat and clear input.
   addMessage("user", message);
   userInput.value = "";
 
-  setLoadingState(true);
+  sendBtn.disabled = true;
   const loadingMessage = addMessage("ai", "Thinking...");
 
-  conversation.push({
+  messages.push({
     role: "user",
     content: message,
   });
 
   try {
-    // Send the full messages array to your Cloudflare Worker endpoint.
     const response = await fetch(workerURL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json",
       },
-      body: JSON.stringify({ messages: conversation }),
+      body: JSON.stringify({ messages }),
     });
 
-    let data = {};
-    try {
-      data = await response.json();
-    } catch {
-      throw new Error("Worker did not return JSON.");
-    }
+    const data = await response.json();
 
     if (!response.ok) {
       const errorMessage =
@@ -94,23 +73,23 @@ chatForm.addEventListener("submit", async (e) => {
       throw new Error(errorMessage);
     }
 
-    const aiReply = getAssistantText(data);
+    const aiReply = data?.choices?.[0]?.message?.content || data?.reply || "";
 
     if (!aiReply) {
       throw new Error("No assistant response was returned by your Worker.");
     }
 
-    conversation.push({
+    messages.push({
       role: "assistant",
       content: aiReply,
     });
 
     loadingMessage.textContent = aiReply;
   } catch (error) {
-    loadingMessage.textContent = `Error: ${error.message}`;
+    loadingMessage.textContent = `Error: ${error.message || "Request failed."}`;
     console.error("Chat request error:", error);
   } finally {
-    setLoadingState(false);
+    sendBtn.disabled = false;
     userInput.focus();
   }
 });
