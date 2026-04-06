@@ -27,7 +27,7 @@ function addMessage(role, text) {
   return message;
 }
 
-// Set initial assistant message in the chat window.
+// Set initial assistant message in the chat window. This is the start of the message history.
 chatWindow.textContent = "";
 addMessage(
   "ai",
@@ -48,6 +48,7 @@ chatForm.addEventListener("submit", async (e) => {
   addMessage("user", message);
   userInput.value = "";
 
+  // Set the send button to disabled as the worker sends the request to the AI.
   sendBtn.disabled = true;
   const loadingMessage = addMessage("ai", "Thinking...");
 
